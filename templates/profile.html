@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Profile - Skills Utilization Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/courses.css" />
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="/courses" class="logo-area">
+        <span>Skills Platform</span>
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/courses">Browse Courses</a></li>
+          <li><a href="/recommendations">Recommendations</a></li>
+          <li><a href="/profile" class="active">Profile</a></li>
+          <li><a href="#" onclick="logoutUser(event)" class="nav-btn-logout">Logout</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-header">
+      <h1>Student Profile & Skill Portfolio</h1>
+      <p>Manage your account info, track your enrolled courses, and select additional skills from the platform.</p>
+    </section>
+
+    <div id="alert-container"></div>
+
+    <div class="profile-grid" id="profile-container">
+      <!-- Loaded dynamically via JavaScript -->
+    </div>
+  </main>
+
+  <footer>
+    <p>Skills Utilization Platform &copy; 2026 | Built with <span>Python</span>, <span>Flask</span>, and <span>PostgreSQL</span></p>
+  </footer>
+
+  <script>
+    // Pure Vanilla JS - No Jinja
+    function logoutUser(e) {
+      e.preventDefault();
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user_info');
+      window.location.href = '/login';
+    }
+
+    async function loadUserProfile() {
+      const token = localStorage.getItem('jwt_token');
+      const container = document.getElementById('profile-container');
+      const alertContainer = document.getElementById('alert-container');
+
+      if (!token) {
+        alertContainer.innerHTML = '<div class="alert alert-error">Please <a href="/login">login</a> to view your profile!</div>';
+        return;
+      }
+
+      try {
+        const [profileRes, skillsRes] = await Promise.all([
+          fetch('/api/users/me', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/skills')
+        ]);
+
+        const profileData = await profileRes.json();
+        const allSkillsData = await skillsRes.json();
+
+        if (profileRes.status === 401) {
+          alertContainer.innerHTML = '<div class="alert alert-error">Session expired. Please <a href="/login">login again</a>.</div>';
+          return;
+        }
+
+        if (!profileRes.ok) {
+          throw new Error(profileData.message || 'Failed to fetch user profile');
+        }
+
+        const user = profileData.user || {};
+        const userSkills = profileData.skills || [];
+        const enrolledCourses = profileData.enrolled_courses || [];
+        const platformSkills = allSkillsData.skills || [];
+
+        // قائمة أسماء المهارات التي يمتلكها الطالب حالياً
+        const ownedSkillNames = userSkills.map(s => s.skill_name);
+
+        // المهارات المتاحة في المنصة والتي لم يضفها الطالب بعد
+        const availableToAdd = platformSkills.filter(s => !ownedSkillNames.includes(s.name));
+
+        const skillsListHtml = userSkills.map(s => `
+          <div class="profile-skill-item">
+            <span style="font-weight:700; color:var(--color-blue-primary); font-size:1.1rem;">${s.skill_name}</span>
+            <span class="proficiency-badge">${s.proficiency_level}</span>
+          </div>
+        `).join('') || '<p style="color:var(--color-text-muted); padding:1rem;">No skills added yet.</p>';
+
+        const coursesListHtml = enrolledCourses.map(c => `
+          <div class="profile-skill-item" style="flex-direction:column; align-items:flex-start; gap:0.5rem; padding:1.25rem 1rem;">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+              <span style="font-weight:800; color:var(--color-blue-primary); font-size:1.15rem;">${c.title}</span>
+              <span class="instructor-badge">${c.instructor || 'Staff'}</span>
+            </div>
+            <p style="color:var(--color-text-muted); font-size:0.95rem;">${c.description || ''}</p>
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-top:0.5rem;">
+              <span style="font-size:0.8rem; color:var(--color-text-muted);">Enrolled: ${c.enrolled_at ? c.enrolled_at.split('T')[0] : 'Recently'}</span>
+              <a href="/course-details?id=${c.course_id}" class="btn btn-cyan" style="padding:0.4rem 0.9rem; font-size:0.85rem;">View Course</a>
+            </div>
+          </div>
+        `).join('') || '<p style="color:var(--color-text-muted); padding:1rem;">You have not enrolled in any courses yet. <a href="/recommendations" style="color:var(--color-cyan-primary); font-weight:700;">Browse AI recommendations -></a></p>';
+
+        const dropdownOptions = availableToAdd.length > 0
+          ? availableToAdd.map(s => `<option value="${s.name}">${s.name}</option>`).join('')
+          : '<option value="">All available platform skills added</option>';
+
+        const isDropdownDisabled = availableToAdd.length === 0 ? 'disabled' : '';
+
+        container.innerHTML = `
+          <div class="profile-info-card">
+            <h2 style="color:var(--color-blue-primary); margin-bottom:1.5rem; border-bottom:2px solid #F1F5F9; padding-bottom:0.5rem;">
+              Personal Details
+            </h2>
+            <p style="margin-bottom:0.75rem;"><strong>Username:</strong> ${user.username || ''}</p>
+            <p style="margin-bottom:0.75rem;"><strong>Email:</strong> ${user.email || ''}</p>
+            <p style="margin-bottom:0.75rem;"><strong>Phone:</strong> ${user.phone || 'N/A'}</p>
+            <p style="margin-bottom:0.75rem;"><strong>Age:</strong> ${user.age || 'N/A'}</p>
+            <p style="margin-bottom:1.5rem;"><strong>Major:</strong> ${user.major || 'General'}</p>
+            <button class="btn btn-red" onclick="logoutUser(event)" style="width:100%;">Logout from Account</button>
+          </div>
+
+          <div class="profile-skills-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:2px solid #F1F5F9; padding-bottom:0.5rem;">
+              <h2 style="color:var(--color-blue-primary);">My Enrolled Courses</h2>
+              <span class="logo-badge" style="font-size:0.9rem;">${enrolledCourses.length} Courses</span>
+            </div>
+
+            <div style="margin-bottom:2.5rem;">
+              ${coursesListHtml}
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:2px solid #F1F5F9; padding-bottom:0.5rem;">
+              <h2 style="color:var(--color-blue-primary);">My Skill Profile</h2>
+              <span class="logo-badge" style="font-size:0.9rem;">${userSkills.length} Skills</span>
+            </div>
+
+            <div style="margin-bottom:2rem;">
+              ${skillsListHtml}
+            </div>
+
+            <form onsubmit="addNewSkill(event)" style="display:flex; gap:0.75rem;">
+              <select id="new-skill-select" class="form-control" style="flex:2;" required ${isDropdownDisabled}>
+                <option value="" disabled selected>-- Select an existing platform skill --</option>
+                ${dropdownOptions}
+              </select>
+              <select id="new-skill-prof" class="form-control" style="flex:1;" ${isDropdownDisabled}>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate" selected>Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+              <button type="submit" class="btn btn-yellow" ${isDropdownDisabled}>Add Skill</button>
+            </form>
+          </div>
+        `;
+      } catch (err) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    async function addNewSkill(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-skill-select').value;
+      const proficiency = document.getElementById('new-skill-prof').value;
+      const token = localStorage.getItem('jwt_token');
+
+      if (!name) {
+        alert("Please select a skill from the list");
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/users/me/skills', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name, proficiency })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to add skill');
+        }
+        loadUserProfile();
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadUserProfile();
+    });
+  </script>
+</body>
+</html>

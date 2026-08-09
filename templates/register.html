@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register - Skills Utilization Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/auth.css" />
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="/courses" class="logo-area">
+        <span>Skills Platform</span>
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/courses">Browse Courses</a></li>
+          <li><a href="/login">Login</a></li>
+          <li><a href="/register" class="nav-btn-register">Register</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="auth-wrapper">
+      <div class="auth-card register-card">
+        <h1 class="auth-title">Create Student Profile</h1>
+        <p class="auth-subtitle">Join today to get tailored AI recommendations based on your skills</p>
+        
+        <div id="alert-container"></div>
+
+        <form id="register-form" onsubmit="handleRegister(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="username">Username</label>
+              <input type="text" id="username" class="form-control" placeholder="abdelrahman" required />
+            </div>
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <input type="email" id="email" class="form-control" placeholder="abod@example.com" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" id="password" class="form-control" placeholder="Secure password" required />
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone Number</label>
+              <input type="text" id="phone" class="form-control" placeholder="+962 0700000000" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="age">Age</label>
+              <input type="number" id="age" class="form-control" placeholder="28" min="15" max="99" />
+            </div>
+            <div class="form-group">
+              <label for="major">Academic Major</label>
+              <input type="text" id="major" class="form-control" placeholder="Computer Science" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Select Your Current Skills (Optional)</label>
+            <div id="skills-select-box" class="skills-select-container">
+              <!-- Dynamically populated via JavaScript -->
+              <label class="skill-checkbox-badge">
+                <input type="checkbox" name="skills" value="Python" />
+                <span>Python</span>
+              </label>
+              <label class="skill-checkbox-badge">
+                <input type="checkbox" name="skills" value="SQL" />
+                <span>SQL</span>
+              </label>
+              <label class="skill-checkbox-badge">
+                <input type="checkbox" name="skills" value="Machine Learning" />
+                <span>Machine Learning</span>
+              </label>
+              <label class="skill-checkbox-badge">
+                <input type="checkbox" name="skills" value="Data Analysis" />
+                <span>Data Analysis</span>
+              </label>
+              <label class="skill-checkbox-badge">
+                <input type="checkbox" name="skills" value="Flask" />
+                <span>Flask</span>
+              </label>
+              <label class="skill-checkbox-badge">
+                <input type="checkbox" name="skills" value="PostgreSQL" />
+                <span>PostgreSQL</span>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-yellow" style="width:100%; margin-top:1rem;">Register & Build Profile</button>
+        </form>
+
+        <div class="auth-footer">
+          Already registered? <a href="/login">Login Here</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Skills Utilization Platform &copy; 2026 | Built with <span>Python</span>, <span>Flask</span>, and <span>PostgreSQL</span></p>
+  </footer>
+
+  <script>
+    // Pure Vanilla JS - No Jinja
+    async function loadAvailableSkills() {
+      try {
+        const res = await fetch('/api/skills');
+        const data = await res.json();
+        if (data.skills && data.skills.length > 0) {
+          const container = document.getElementById('skills-select-box');
+          container.innerHTML = data.skills.map(s => `
+            <label class="skill-checkbox-badge">
+              <input type="checkbox" name="skills" value="${s.name}" />
+              <span>${s.name}</span>
+            </label>
+          `).join('');
+        }
+      } catch (err) {
+        console.warn('Using default fallback skills list', err);
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const phone = document.getElementById('phone').value.trim();
+      const age = document.getElementById('age').value.trim();
+      const major = document.getElementById('major').value.trim();
+
+      const checkedSkills = Array.from(document.querySelectorAll('input[name="skills"]:checked')).map(el => el.value);
+
+      const alertContainer = document.getElementById('alert-container');
+      alertContainer.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username, email, password, phone, age, major,
+            skills: checkedSkills.map(name => ({ name, proficiency: 'intermediate' }))
+          })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Registration failed');
+        }
+
+        localStorage.setItem('jwt_token', data.token);
+        localStorage.setItem('user_info', JSON.stringify(data.user));
+
+        alertContainer.innerHTML = '<div class="alert alert-success">Registration successful! Redirecting to recommendations...</div>';
+        setTimeout(() => {
+          window.location.href = '/recommendations';
+        }, 1000);
+      } catch (err) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAvailableSkills();
+    });
+  </script>
+</body>
+</html>

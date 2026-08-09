@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personalized Recommendations - Skills Utilization Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/courses.css" />
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="/courses" class="logo-area">
+        <span>Skills Platform</span>
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/courses">Browse Courses</a></li>
+          <li><a href="/recommendations" class="active">Recommendations</a></li>
+          <li><a href="/profile">Profile</a></li>
+          <li><a href="#" onclick="logoutUser(event)" class="nav-btn-logout">Logout</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-header">
+      <h1>Your Personalized Course Feed</h1>
+      <p>AI matchmaking compares your skill profile against course requirements to rank the best fit for you.</p>
+    </section>
+
+    <div id="alert-container"></div>
+
+    <section id="recommendations-grid" class="courses-grid">
+      <!-- Dynamically loaded via Fetch API -->
+    </section>
+  </main>
+
+  <footer>
+    <p>Skills Utilization Platform &copy; 2026 | Built with <span>Python</span>, <span>Flask</span>, and <span>PostgreSQL</span></p>
+  </footer>
+
+  <script>
+    // Pure Vanilla JS - No Jinja
+    function logoutUser(e) {
+      e.preventDefault();
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user_info');
+      window.location.href = '/login';
+    }
+
+    async function loadRecommendations() {
+      const token = localStorage.getItem('jwt_token');
+      const grid = document.getElementById('recommendations-grid');
+      const alertContainer = document.getElementById('alert-container');
+
+      if (!token) {
+        alertContainer.innerHTML = '<div class="alert alert-error">Please <a href="/login" style="color:var(--color-blue-dark); text-decoration:underline;">login</a> to view personalized AI course recommendations!</div>';
+        return;
+      }
+
+      grid.innerHTML = '<p style="color:var(--color-text-muted);">Analyzing your skill vectors and generating recommendations...</p>';
+
+      try {
+        const res = await fetch('/api/recommendations', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (res.status === 401) {
+          alertContainer.innerHTML = '<div class="alert alert-error">Session expired. Please <a href="/login">login again</a>.</div>';
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to load recommendations');
+        }
+
+        const recs = data.recommendations || [];
+        if (recs.length === 0) {
+          grid.innerHTML = '<p style="color:var(--color-text-muted);">No courses available. Check back soon!</p>';
+          return;
+        }
+
+        grid.innerHTML = recs.map(course => {
+          const isHighMatch = course.match_score >= 60;
+          const matchBadgeClass = isHighMatch ? 'match-score-badge match-score-high' : 'match-score-badge';
+          
+          const tagsHtml = (course.skill_requirements || []).map(s => {
+            const isMatched = (course.matched_skills || []).includes(s.toLowerCase());
+            return `<span class="skill-tag ${isMatched ? 'matched' : ''}">${s}</span>`;
+          }).join('');
+
+          return `
+            <article class="course-card">
+              <div class="course-card-header">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                  <span class="${matchBadgeClass}">${course.match_score}% Match</span>
+                  <span class="instructor-badge">${course.instructor || 'Instructor'}</span>
+                </div>
+                <h3>${course.title}</h3>
+              </div>
+              <div class="course-card-body">
+                <p class="course-description">${course.description || ''}</p>
+                <div class="skills-required-title">Required Skills (Yellow = Already Owned):</div>
+                <div class="skills-tags">${tagsHtml || '<span class="skill-tag">None</span>'}</div>
+              </div>
+              <div class="course-card-footer">
+                <a href="/course-details?id=${course.id}" class="btn btn-primary">Enroll / Details</a>
+              </div>
+            </article>
+          `;
+        }).join('');
+      } catch (err) {
+        alertContainer.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadRecommendations();
+    });
+  </script>
+</body>
+</html>

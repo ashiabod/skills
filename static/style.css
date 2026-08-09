@@ -1,0 +1,229 @@
+/* =========================================================
+   STYLE.CSS - Shared Shell (Nav, Header, Footer, Typography)
+   Color Palette: Blue (الأزرق), Cyan (السماوي), Yellow (الأصفر), Red (الأحمر)
+========================================================= */
+
+:root {
+  --color-blue-primary: #1E3A8A;
+  --color-blue-dark: #172554;
+  --color-blue-light: #3B82F6;
+  --color-cyan-primary: #0284C7;
+  --color-cyan-light: #E0F2FE;
+  --color-cyan-border: #38BDF8;
+  --color-yellow-primary: #EAB308;
+  --color-yellow-light: #FEF9C3;
+  --color-yellow-dark: #A16207;
+  --color-red-primary: #EF4444;
+  --color-red-light: #FEE2E2;
+  --color-red-dark: #991B1B;
+  --color-bg: #F8FAFC;
+  --color-card-bg: #FFFFFF;
+  --color-text-main: #0F172A;
+  --color-text-muted: #475569;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Header & Navigation Bar */
+header {
+  background: linear-gradient(135deg, var(--color-blue-primary), var(--color-blue-dark));
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 1.35rem;
+}
+
+.logo-badge {
+  background-color: var(--color-yellow-primary);
+  color: var(--color-blue-dark);
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+nav ul {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+nav a {
+  color: #FFFFFF;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.5rem 0.85rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+nav a:hover, nav a.active {
+  background-color: var(--color-cyan-primary);
+  color: #FFFFFF;
+}
+
+.nav-btn-register {
+  background-color: var(--color-yellow-primary);
+  color: var(--color-blue-dark) !important;
+  font-weight: 700;
+}
+
+.nav-btn-register:hover {
+  background-color: #FACC15;
+}
+
+.nav-btn-logout {
+  background-color: var(--color-red-primary);
+  color: #FFFFFF !important;
+}
+
+.nav-btn-logout:hover {
+  background-color: var(--color-red-dark);
+}
+
+/* Main Layout Shell */
+main {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+/* Page Headers */
+.page-header {
+  margin-bottom: 2rem;
+  border-bottom: 3px solid var(--color-cyan-border);
+  padding-bottom: 1rem;
+}
+
+.page-header h1 {
+  color: var(--color-blue-primary);
+  font-size: 2.2rem;
+  font-weight: 800;
+}
+
+.page-header p {
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--color-blue-primary);
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-blue-light);
+}
+
+.btn-cyan {
+  background-color: var(--color-cyan-primary);
+  color: #FFFFFF;
+}
+
+.btn-cyan:hover {
+  background-color: #0369A1;
+}
+
+.btn-yellow {
+  background-color: var(--color-yellow-primary);
+  color: var(--color-blue-dark);
+  font-weight: 700;
+}
+
+.btn-yellow:hover {
+  background-color: #F59E0B;
+}
+
+.btn-red {
+  background-color: var(--color-red-primary);
+  color: #FFFFFF;
+}
+
+.btn-red:hover {
+  background-color: var(--color-red-dark);
+}
+
+/* Alert Boxes */
+.alert {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.alert-error {
+  background-color: var(--color-red-light);
+  color: var(--color-red-dark);
+  border: 1px solid var(--color-red-primary);
+}
+
+.alert-success {
+  background-color: var(--color-yellow-light);
+  color: var(--color-yellow-dark);
+  border: 1px solid var(--color-yellow-primary);
+}
+
+/* Footer */
+footer {
+  background-color: var(--color-blue-dark);
+  color: #FFFFFF;
+  text-align: center;
+  padding: 1.5rem;
+  margin-top: 3rem;
+  font-size: 0.95rem;
+}
+
+footer span {
+  color: var(--color-yellow-primary);
+  font-weight: 700;
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - Skills Utilization Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/auth.css" />
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="/courses" class="logo-area">
+        <span>Skills Platform</span>
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/courses">Browse Courses</a></li>
+          <li><a href="/login" class="active">Login</a></li>
+          <li><a href="/register" class="nav-btn-register">Register</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="auth-wrapper">
+      <div class="auth-card">
+        <h1 class="auth-title">Welcome Back</h1>
+        <p class="auth-subtitle">Login to view your personalized AI course recommendations</p>
+        
+        <div id="alert-container"></div>
+
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" class="form-control" placeholder="student@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" class="form-control" placeholder="Enter your password" required />
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:0.75rem;">Login to Platform</button>
+        </form>
+
+        <div class="auth-footer">
+          Don't have an account? <a href="/register">Register Here</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Skills Utilization Platform &copy; 2026 | Built with <span>Python</span>, <span>Flask</span>, and <span>PostgreSQL</span></p>
+  </footer>
+
+  <script>
+    // Pure Vanilla JS - No Jinja
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const alertContainer = document.getElementById('alert-container');
+      alertContainer.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Login failed');
+        }
+
+        localStorage.setItem('jwt_token', data.token);
+        localStorage.setItem('user_info', JSON.stringify(data.user));
+        
+        alertContainer.innerHTML = '<div class="alert alert-success">Login successful! Redirecting to recommendations...</div>';
+        setTimeout(() => {
+          window.location.href = '/recommendations';
+        }, 1000);
+      } catch (err) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

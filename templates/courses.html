@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Courses Catalog - Skills Utilization Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/courses.css" />
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="/courses" class="logo-area">
+        <span>Skills Platform</span>
+      </a>
+      <nav>
+        <ul id="nav-links">
+          <li><a href="/courses" class="active">Browse Courses</a></li>
+          <li class="auth-only" style="display:none;"><a href="/recommendations">Recommendations</a></li>
+          <li class="auth-only" style="display:none;"><a href="/profile">Profile</a></li>
+          <li class="guest-only"><a href="/login">Login</a></li>
+          <li class="auth-only" style="display:none;"><a href="#" onclick="logoutUser(event)" class="nav-btn-logout">Logout</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-header">
+      <h1>Explore Available Courses</h1>
+      <p>Discover courses and see how they match your personal skill profile.</p>
+    </section>
+
+    <section class="toolbar-section">
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="Search courses by title or keyword..." />
+        <button class="btn btn-primary" onclick="searchCourses()">Search</button>
+      </div>
+      <div>
+        <button class="btn btn-yellow" onclick="seedDemoData()">Load Demo Courses</button>
+      </div>
+    </section>
+
+    <div id="alert-container"></div>
+
+    <section id="courses-grid" class="courses-grid">
+      <!-- Courses loaded dynamically via Fetch API -->
+    </section>
+  </main>
+
+  <footer>
+    <p>Skills Utilization Platform &copy; 2026 | Built with <span>Python</span>, <span>Flask</span>, and <span>PostgreSQL</span></p>
+  </footer>
+
+  <script>
+    // Pure Vanilla JS - No Jinja
+    function updateNav() {
+      const token = localStorage.getItem('jwt_token');
+      document.querySelectorAll('.guest-only').forEach(el => el.style.display = token ? 'none' : 'inline-block');
+      document.querySelectorAll('.auth-only').forEach(el => el.style.display = token ? 'inline-block' : 'none');
+    }
+
+    function logoutUser(e) {
+      e.preventDefault();
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user_info');
+      window.location.href = '/login';
+    }
+
+    async function loadCourses(search = '') {
+      const grid = document.getElementById('courses-grid');
+      grid.innerHTML = '<p style="color:var(--color-text-muted);">Loading courses catalog...</p>';
+      
+      try {
+        const res = await fetch(`/api/courses?search=${encodeURIComponent(search)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to load courses');
+        }
+
+        const courses = data.courses || [];
+        if (courses.length === 0) {
+          grid.innerHTML = '<p style="color:var(--color-text-muted);">No courses found. Click "Load Demo Courses" to seed initial data!</p>';
+          return;
+        }
+
+        grid.innerHTML = courses.map(course => {
+          const tagsHtml = (course.skill_requirements || []).map(s => 
+            `<span class="skill-tag">${s}</span>`
+          ).join('');
+
+          return `
+            <article class="course-card">
+              <div class="course-card-header">
+                <h3>${course.title}</h3>
+                <span class="instructor-badge">${course.instructor || 'Staff Instructor'}</span>
+              </div>
+              <div class="course-card-body">
+                <p class="course-description">${course.description || ''}</p>
+                <div class="skills-required-title">Required Skills:</div>
+                <div class="skills-tags">${tagsHtml || '<span class="skill-tag">None</span>'}</div>
+              </div>
+              <div class="course-card-footer">
+                <a href="/course-details?id=${course.id}" class="btn btn-cyan">View Details</a>
+              </div>
+            </article>
+          `;
+        }).join('');
+      } catch (err) {
+        grid.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+      }
+    }
+
+    function searchCourses() {
+      const query = document.getElementById('search-input').value.trim();
+      loadCourses(query);
+    }
+
+    async function seedDemoData() {
+      const container = document.getElementById('alert-container');
+      try {
+        const res = await fetch('/api/seed', { method: 'POST' });
+        const data = await res.json();
+        container.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+        loadCourses();
+        setTimeout(() => { container.innerHTML = ''; }, 4000);
+      } catch (err) {
+        container.innerHTML = `<div class="alert alert-error">Failed to seed database: ${err.message}</div>`;
+      }
+    }
+
+    document.getElementById('search-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') searchCourses();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateNav();
+      loadCourses();
+    });
+  </script>
+</body>
+</html>

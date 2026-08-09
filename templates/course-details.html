@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Course Details - Skills Utilization Platform</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/courses.css" />
+</head>
+<body>
+  <header>
+    <div class="nav-container">
+      <a href="/courses" class="logo-area">
+        <span>Skills Platform</span>
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/courses">Browse Courses</a></li>
+          <li class="auth-only"><a href="/recommendations">Recommendations</a></li>
+          <li class="auth-only"><a href="/profile">Profile</a></li>
+          <li class="guest-only"><a href="/login">Login</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div id="alert-container"></div>
+    <div id="course-content">
+      <!-- Loaded dynamically via JavaScript -->
+    </div>
+  </main>
+
+  <footer>
+    <p>Skills Utilization Platform &copy; 2026 | Built with <span>Python</span>, <span>Flask</span>, and <span>PostgreSQL</span></p>
+  </footer>
+
+  <script>
+    // Pure Vanilla JS - No Jinja
+    function updateNav() {
+      const token = localStorage.getItem('jwt_token');
+      document.querySelectorAll('.guest-only').forEach(el => el.style.display = token ? 'none' : 'inline-block');
+      document.querySelectorAll('.auth-only').forEach(el => el.style.display = token ? 'inline-block' : 'none');
+    }
+
+    async function loadCourseDetails() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const courseId = urlParams.get('id');
+      const content = document.getElementById('course-content');
+
+      if (!courseId) {
+        content.innerHTML = '<div class="alert alert-error">Invalid Course ID. <a href="/courses">Return to Catalog</a></div>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/courses/${courseId}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Course not found');
+        }
+
+        const course = data.course;
+        const tagsHtml = (course.skill_requirements || []).map(s => 
+          `<span class="skill-tag" style="font-size:0.95rem; padding:0.4rem 0.8rem;">${s}</span>`
+        ).join('');
+
+        content.innerHTML = `
+          <div class="course-details-card">
+            <span class="instructor-badge" style="margin-bottom:0.75rem; font-size:1rem;">Instructor: ${course.instructor || 'Staff'}</span>
+            <h1 style="color:var(--color-blue-primary); font-size:2.2rem; margin-bottom:1rem;">${course.title}</h1>
+            <p style="font-size:1.15rem; color:var(--color-text-muted); margin-bottom:2rem; line-height:1.8;">
+              ${course.description || 'No description available for this course.'}
+            </p>
+
+            <div style="margin-bottom:2.5rem;">
+              <h3 style="color:var(--color-blue-dark); margin-bottom:0.75rem;">Required Skills to Enroll:</h3>
+              <div class="skills-tags">${tagsHtml || '<span class="skill-tag">None Required</span>'}</div>
+            </div>
+
+            <div style="display:flex; gap:1rem;">
+              <button class="btn btn-yellow" style="font-size:1.1rem; padding:0.8rem 2rem;" onclick="enrollCourse(${course.id})">Enroll in Course</button>
+              <a href="/courses" class="btn btn-primary" style="font-size:1.1rem; padding:0.8rem 2rem;">Back to Catalog</a>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        content.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    async function enrollCourse(courseId) {
+      const alertContainer = document.getElementById('alert-container');
+      const token = localStorage.getItem('jwt_token');
+      if (!token) {
+        alertContainer.innerHTML = '<div class="alert alert-error">You must <a href="/login" style="color:var(--color-blue-dark); text-decoration:underline;">login</a> before enrolling in a course!</div>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/courses/${courseId}/enroll`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Enrollment failed');
+        }
+
+        alertContainer.innerHTML = `<div class="alert alert-success">${data.message} <a href="/profile" style="color:var(--color-blue-dark); text-decoration:underline; font-weight:bold;">View in Profile -></a></div>`;
+      } catch (err) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateNav();
+      loadCourseDetails();
+    });
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a286d0b60ab63c08',t:'MTc4NjI3OTA3OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
