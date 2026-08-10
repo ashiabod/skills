@@ -12,6 +12,7 @@
     <div class="nav-container">
       <a href="/courses" class="logo-area">
         <span>Skills Platform</span>
+        <span class="logo-badge">AI Match</span>
       </a>
       <nav>
         <ul>
@@ -22,7 +23,6 @@
         </ul>
       </nav>
     </div>
-    <br>
   </header>
 
   <main>
@@ -83,16 +83,16 @@
         const enrolledCourses = profileData.enrolled_courses || [];
         const platformSkills = allSkillsData.skills || [];
 
-        // قائمة أسماء المهارات التي يمتلكها الطالب حالياً
         const ownedSkillNames = userSkills.map(s => s.skill_name);
-
-        // المهارات المتاحة في المنصة والتي لم يضفها الطالب بعد
         const availableToAdd = platformSkills.filter(s => !ownedSkillNames.includes(s.name));
 
         const skillsListHtml = userSkills.map(s => `
           <div class="profile-skill-item">
-            <span style="font-weight:700; color:var(--color-blue-primary); font-size:1.1rem;">${s.skill_name}</span>
-            <span class="proficiency-badge">${s.proficiency_level}</span>
+            <div>
+              <span style="font-weight:700; color:var(--color-blue-primary); font-size:1.1rem; margin-right:0.75rem;">${s.skill_name}</span>
+              <span class="proficiency-badge">${s.proficiency_level}</span>
+            </div>
+            <button class="btn btn-red" style="padding:0.35rem 0.85rem; font-size:0.85rem;" onclick="removeSkill(${s.skill_id})">Remove</button>
           </div>
         `).join('') || '<p style="color:var(--color-text-muted); padding:1rem;">No skills added yet.</p>';
 
@@ -100,12 +100,14 @@
           <div class="profile-skill-item" style="flex-direction:column; align-items:flex-start; gap:0.5rem; padding:1.25rem 1rem;">
             <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
               <span style="font-weight:800; color:var(--color-blue-primary); font-size:1.15rem;">${c.title}</span>
-              <span class="instructor-badge">${c.instructor || 'Staff'}</span>
             </div>
             <p style="color:var(--color-text-muted); font-size:0.95rem;">${c.description || ''}</p>
             <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-top:0.5rem;">
               <span style="font-size:0.8rem; color:var(--color-text-muted);">Enrolled: ${c.enrolled_at ? c.enrolled_at.split('T')[0] : 'Recently'}</span>
-              <a href="/course-details?id=${c.course_id}" class="btn btn-cyan" style="padding:0.4rem 0.9rem; font-size:0.85rem;">View Course</a>
+              <div>
+                <a href="/course-details?id=${c.course_id}" class="btn btn-cyan" style="padding:0.4rem 0.9rem; font-size:0.85rem;">View</a>
+                <button class="btn btn-red" style="padding:0.4rem 0.9rem; font-size:0.85rem; margin-left:0.5rem;" onclick="removeCourse(${c.course_id})">Unenroll</button>
+              </div>
             </div>
           </div>
         `).join('') || '<p style="color:var(--color-text-muted); padding:1rem;">You have not enrolled in any courses yet. <a href="/recommendations" style="color:var(--color-cyan-primary); font-weight:700;">Browse AI recommendations -></a></p>';
@@ -121,12 +123,38 @@
             <h2 style="color:var(--color-blue-primary); margin-bottom:1.5rem; border-bottom:2px solid #F1F5F9; padding-bottom:0.5rem;">
               Personal Details
             </h2>
-            <p style="margin-bottom:0.75rem;"><strong>Username:</strong> ${user.username || ''}</p>
-            <p style="margin-bottom:0.75rem;"><strong>Email:</strong> ${user.email || ''}</p>
-            <p style="margin-bottom:0.75rem;"><strong>Phone:</strong> ${user.phone || 'N/A'}</p>
-            <p style="margin-bottom:0.75rem;"><strong>Age:</strong> ${user.age || 'N/A'}</p>
-            <p style="margin-bottom:1.5rem;"><strong>Major:</strong> ${user.major || 'General'}</p>
-            <button class="btn btn-red" onclick="logoutUser(event)" style="width:100%;">Logout from Account</button>
+            <div id="view-profile-mode">
+              <p style="margin-bottom:0.75rem;"><strong>Username:</strong> ${user.username || ''}</p>
+              <p style="margin-bottom:0.75rem;"><strong>Email:</strong> ${user.email || ''}</p>
+              <p style="margin-bottom:0.75rem;"><strong>Phone:</strong> ${user.phone || 'N/A'}</p>
+              <p style="margin-bottom:0.75rem;"><strong>Age:</strong> ${user.age || 'N/A'}</p>
+              <p style="margin-bottom:1.5rem;"><strong>Major:</strong> ${user.major || 'General'}</p>
+              <button class="btn btn-yellow" onclick="toggleEditProfile(true)" style="width:100%; margin-bottom:0.75rem;">Edit Name & Profile</button>
+              <button class="btn btn-red" onclick="logoutUser(event)" style="width:100%;">Logout from Account</button>
+            </div>
+
+            <form id="edit-profile-form" style="display:none; margin-top:0.5rem;" onsubmit="saveProfileChanges(event)">
+              <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="edit-username" class="form-control" value="${user.username || ''}" required />
+              </div>
+              <div class="form-group">
+                <label>Phone Number</label>
+                <input type="text" id="edit-phone" class="form-control" value="${user.phone || ''}" />
+              </div>
+              <div class="form-group">
+                <label>Age</label>
+                <input type="number" id="edit-age" class="form-control" value="${user.age || ''}" />
+              </div>
+              <div class="form-group">
+                <label>Academic Major</label>
+                <input type="text" id="edit-major" class="form-control" value="${user.major || ''}" />
+              </div>
+              <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">Save Changes</button>
+                <button type="button" class="btn btn-red" style="flex:1;" onclick="toggleEditProfile(false)">Cancel</button>
+              </div>
+            </form>
           </div>
 
           <div class="profile-skills-card">
@@ -164,6 +192,73 @@
         `;
       } catch (err) {
         alertContainer.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    function toggleEditProfile(showEdit) {
+      document.getElementById('view-profile-mode').style.display = showEdit ? 'none' : 'block';
+      document.getElementById('edit-profile-form').style.display = showEdit ? 'block' : 'none';
+    }
+
+    async function saveProfileChanges(e) {
+      e.preventDefault();
+      const alertContainer = document.getElementById('alert-container');
+      const token = localStorage.getItem('jwt_token');
+      const username = document.getElementById('edit-username').value.trim();
+      const phone = document.getElementById('edit-phone').value.trim();
+      const age = document.getElementById('edit-age').value.trim();
+      const major = document.getElementById('edit-major').value.trim();
+
+      try {
+        const res = await fetch('/api/users/me', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ username, phone, age, major })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to update profile');
+        }
+        alertContainer.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+        setTimeout(() => alertContainer.innerHTML = '', 3000);
+        loadUserProfile();
+      } catch (err) {
+        alertContainer.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      }
+    }
+
+    async function removeSkill(skillId) {
+      if (!confirm("Are you sure you want to remove this skill? (It will be soft-deleted and can be re-added later)")) return;
+      const token = localStorage.getItem('jwt_token');
+      try {
+        const res = await fetch(`/api/users/me/skills/${skillId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to remove skill');
+        loadUserProfile();
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      }
+    }
+
+    async function removeCourse(courseId) {
+      if (!confirm("Are you sure you want to unenroll from this course?")) return;
+      const token = localStorage.getItem('jwt_token');
+      try {
+        const res = await fetch(`/api/users/me/courses/${courseId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to remove course');
+        loadUserProfile();
+      } catch (err) {
+        alert(`Error: ${err.message}`);
       }
     }
 

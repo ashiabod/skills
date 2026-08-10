@@ -24,17 +24,81 @@ from errors import register_error_handlers
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config.from_object(Config)
 
-# تسجيل معالجات الأخطاء من الملف المستقل errors.py
+# Register external independent error handlers from errors.py
 register_error_handlers(app)
 
-# إنشاء اتصال قاعدة البيانات باستخدام SQLAlchemy Core و PostgreSQL
+# Create database engine using SQLAlchemy Core & PostgreSQL
 engine = create_engine(app.config["SQLALCHEMY_DATABASE_URI"])
 
-# إنشاء الجداول تلقائياً إن لم تكن موجودة
+# Automatically create tables if not existing
 metadata.create_all(bind=engine)
 
 # =========================================================
-# مساعدات JWT Authentication
+# Automatic Database Seeding on Startup
+# =========================================================
+def auto_seed_database():
+    with engine.begin() as conn:
+        existing_courses = conn.execute(select(courses_table)).all()
+        if len(existing_courses) == 0:
+            skills_data = [
+                ("Python", "Programming language for AI and backend"),
+                ("SQL", "Database query language"),
+                ("Machine Learning", "AI algorithms and data modeling"),
+                ("Data Analysis", "Exploratory data analysis and visualization"),
+                ("Flask", "Python Web Framework"),
+                ("PostgreSQL", "Relational Database Management System"),
+                ("Docker", "Containerization platform"),
+                ("Git", "Version control system"),
+            ]
+            for name, desc in skills_data:
+                conn.execute(
+                    insert(skills_table).values(
+                        name=name,
+                        description=desc,
+                        is_deleted=False,
+                        deleted_at=None,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow(),
+                    )
+                )
+
+            courses_data = [
+                ("AI Data Science Bootcamp", "Master AI, Data Analysis, and Python from scratch with real-world projects.", "Dr. Sarah Ali", "Python, SQL, Data Analysis"),
+                ("Advanced Web Systems with Flask", "Build high-performance REST APIs and scalable architectures.", "Eng. Khaled Omar", "Python, Flask, SQL"),
+                ("Deep Learning & NLP Mastery", "Neural networks and Large Language Models using modern Python stacks.", "Dr. Tareq Hassan", "Python, Machine Learning"),
+                ("Enterprise PostgreSQL Design", "Database schemas, migrations, indexing, and vector similarity.", "Eng. Laila Mansour", "SQL, PostgreSQL"),
+                ("DevOps & Docker Deployment", "Deploy scalable Flask applications and PostgreSQL containers in production.", "Eng. Tariq Mansour", "Docker, Git, Python"),
+            ]
+            for title, desc, inst, reqs in courses_data:
+                res = conn.execute(
+                    insert(courses_table).values(
+                        title=title,
+                        description=desc,
+                        instructor=inst,
+                        skill_requirements=reqs,
+                        is_deleted=False,
+                        deleted_at=None,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow(),
+                    )
+                )
+                c_id = res.inserted_primary_key[0] if res.inserted_primary_key else None
+                if c_id:
+                    conn.execute(
+                        insert(course_vectors_table).values(
+                            course_id=c_id,
+                            embedding_vector="[0.12, 0.45, 0.88, 0.33]",
+                            is_deleted=False,
+                            deleted_at=None,
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow(),
+                        )
+                    )
+
+auto_seed_database()
+
+# =========================================================
+# JWT Authentication Helper
 # =========================================================
 def generate_jwt_token(user_row):
     payload = {
@@ -59,10 +123,13 @@ def token_required(f):
             user_id = payload.get("sub")
             with engine.connect() as conn:
                 user_row = conn.execute(
-                    select(users_table).where(users_table.c.id == user_id)
+                    select(users_table).where(
+                        (users_table.c.id == user_id) &
+                        ((users_table.c.is_deleted == False) | (users_table.c.is_deleted == None))
+                    )
                 ).mappings().first()
                 if not user_row:
-                    return jsonify({"error": "Unauthorized", "message": "User not found"}), 401
+                    return jsonify({"error": "Unauthorized", "message": "User not found or deleted"}), 401
                 g.current_user = user_row
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Unauthorized", "message": "Token has expired"}), 401
@@ -73,7 +140,7 @@ def token_required(f):
     return decorated
 
 # =========================================================
-# صفحات HTML5 الثابتة بنسبة 100% (دون استخدام Jinja أبداً)
+# Static HTML5 Frontend Routes (100% Static - No Jinja)
 # =========================================================
 @app.route("/")
 def index():
@@ -104,7 +171,7 @@ def profile_page():
     return send_from_directory("templates", "profile.html")
 
 # =========================================================
-# مسارات المصادقة والتسجيل عبر SQLAlchemy Core (/api/auth)
+# Authentication & Registration Routes (/api/auth)
 # =========================================================
 @app.route("/api/auth/register", methods=["POST"])
 def register():
@@ -131,7 +198,6 @@ def register():
 
         hashed_password = generate_password_hash(password)
         
-        # إدراج المستخدم الجديد عبر SQLAlchemy Core
         insert_user_stmt = insert(users_table).values(
             username=username,
             email=email,
@@ -139,6 +205,8 @@ def register():
             phone=data.get("phone", ""),
             age=int(data.get("age", 0)) if data.get("age") else None,
             major=data.get("major", ""),
+            is_deleted=False,
+            deleted_at=None,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )
@@ -149,14 +217,16 @@ def register():
             select(users_table).where(users_table.c.id == user_id)
         ).mappings().first()
 
-        # إضافة المهارات الأولية المختارة (فقط إن كانت مهارات موجودة بالنظام)
         skills_list = data.get("skills", [])
         for skill_item in skills_list:
             skill_name = skill_item.get("name") if isinstance(skill_item, dict) else str(skill_item)
             proficiency = skill_item.get("proficiency", "intermediate") if isinstance(skill_item, dict) else "intermediate"
             
             skill_row = conn.execute(
-                select(skills_table).where(skills_table.c.name == skill_name)
+                select(skills_table).where(
+                    (skills_table.c.name == skill_name) &
+                    ((skills_table.c.is_deleted == False) | (skills_table.c.is_deleted == None))
+                )
             ).mappings().first()
             
             if skill_row:
@@ -165,6 +235,8 @@ def register():
                         user_id=new_user["id"],
                         skill_id=skill_row["id"],
                         proficiency_level=proficiency,
+                        is_deleted=False,
+                        deleted_at=None,
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow(),
                     )
@@ -191,7 +263,10 @@ def login():
 
     with engine.connect() as conn:
         user = conn.execute(
-            select(users_table).where(users_table.c.email == email)
+            select(users_table).where(
+                (users_table.c.email == email) &
+                ((users_table.c.is_deleted == False) | (users_table.c.is_deleted == None))
+            )
         ).mappings().first()
         
         if not user or not check_password_hash(user["password"], password):
@@ -208,14 +283,13 @@ def login():
     }), 200
 
 # =========================================================
-# مسارات المستخدمين والمهارات والدورات المسجلة (/api/users)
+# User Profile, Name Editing & Soft Deletion (/api/users)
 # =========================================================
 @app.route("/api/users/me", methods=["GET"])
 @token_required
 def get_current_user_profile():
     user = g.current_user
     with engine.connect() as conn:
-        # 1. جلب مهارات الطالب
         stmt_skills = (
             select(
                 user_skills_table.c.id,
@@ -227,11 +301,13 @@ def get_current_user_profile():
             .select_from(
                 user_skills_table.join(skills_table, user_skills_table.c.skill_id == skills_table.c.id)
             )
-            .where(user_skills_table.c.user_id == user["id"])
+            .where(
+                (user_skills_table.c.user_id == user["id"]) &
+                ((user_skills_table.c.is_deleted == False) | (user_skills_table.c.is_deleted == None))
+            )
         )
         skills_rows = conn.execute(stmt_skills).mappings().all()
 
-        # 2. جلب الدورات التدريبية المسجل بها الطالب
         stmt_courses = (
             select(
                 user_courses_table.c.id.label("enrollment_id"),
@@ -244,7 +320,10 @@ def get_current_user_profile():
             .select_from(
                 user_courses_table.join(courses_table, user_courses_table.c.course_id == courses_table.c.id)
             )
-            .where(user_courses_table.c.user_id == user["id"])
+            .where(
+                (user_courses_table.c.user_id == user["id"]) &
+                ((user_courses_table.c.is_deleted == False) | (user_courses_table.c.is_deleted == None))
+            )
         )
         enrolled_rows = conn.execute(stmt_courses).mappings().all()
 
@@ -252,6 +331,54 @@ def get_current_user_profile():
         "user": user_row_to_dict(user),
         "skills": [dict(r) for r in skills_rows],
         "enrolled_courses": [dict(r) for r in enrolled_rows]
+    }), 200
+
+@app.route("/api/users/me", methods=["PUT"])
+@token_required
+def update_user_profile():
+    data = request.get_json(force=True, silent=True) or {}
+    new_username = data.get("username", "").strip()
+    phone = data.get("phone", "").strip()
+    major = data.get("major", "").strip()
+    age = int(data.get("age", 0)) if data.get("age") else None
+
+    if not new_username:
+        return jsonify({"error": "Bad Request", "message": "Username is required"}), 400
+
+    with engine.begin() as conn:
+        existing = conn.execute(
+            select(users_table).where(
+                (users_table.c.username == new_username) &
+                (users_table.c.id != g.current_user["id"]) &
+                ((users_table.c.is_deleted == False) | (users_table.c.is_deleted == None))
+            )
+        ).first()
+
+        if existing:
+            return jsonify({
+                "error": "Bad Request",
+                "message": "This username is already taken by another student. Please choose a different username."
+            }), 400
+
+        conn.execute(
+            update(users_table)
+            .where(users_table.c.id == g.current_user["id"])
+            .values(
+                username=new_username,
+                phone=phone,
+                major=major,
+                age=age,
+                updated_at=datetime.utcnow()
+            )
+        )
+
+        updated_user = conn.execute(
+            select(users_table).where(users_table.c.id == g.current_user["id"])
+        ).mappings().first()
+
+    return jsonify({
+        "message": "Profile details updated successfully",
+        "user": user_row_to_dict(updated_user)
     }), 200
 
 @app.route("/api/users/me/skills", methods=["POST"])
@@ -266,14 +393,16 @@ def add_user_skill():
 
     with engine.begin() as conn:
         skill_row = conn.execute(
-            select(skills_table).where(skills_table.c.name == skill_name)
+            select(skills_table).where(
+                (skills_table.c.name == skill_name) &
+                ((skills_table.c.is_deleted == False) | (skills_table.c.is_deleted == None))
+            )
         ).mappings().first()
         
-        # منع إضافة مهارة غير موجودة بالنظام - يجب أن تكون موجودة مسبقاً
         if not skill_row:
             return jsonify({
                 "error": "Bad Request", 
-                "message": "لا يمكن إضافة مهارة جديدة غير موجودة. يجب اختيار مهارة متاحة من القائمة المحددة في النظام."
+                "message": "Cannot add a non-existent skill. Please select an available skill from the platform list."
             }), 400
             
         skill_id = skill_row["id"]
@@ -292,7 +421,12 @@ def add_user_skill():
                     (user_skills_table.c.user_id == g.current_user["id"]) &
                     (user_skills_table.c.skill_id == skill_id)
                 )
-                .values(proficiency_level=proficiency, updated_at=datetime.utcnow())
+                .values(
+                    proficiency_level=proficiency, 
+                    is_deleted=False, 
+                    deleted_at=None,
+                    updated_at=datetime.utcnow()
+                )
             )
         else:
             conn.execute(
@@ -300,22 +434,55 @@ def add_user_skill():
                     user_id=g.current_user["id"],
                     skill_id=skill_id,
                     proficiency_level=proficiency,
+                    is_deleted=False,
+                    deleted_at=None,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),
                 )
             )
 
-    return jsonify({"message": "Skill updated successfully"}), 200
+    return jsonify({"message": "Skill added successfully"}), 200
+
+@app.route("/api/users/me/skills/<int:skill_id>", methods=["DELETE"])
+@token_required
+def soft_delete_user_skill(skill_id):
+    with engine.begin() as conn:
+        conn.execute(
+            update(user_skills_table)
+            .where(
+                (user_skills_table.c.user_id == g.current_user["id"]) &
+                (user_skills_table.c.skill_id == skill_id)
+            )
+            .values(is_deleted=True, deleted_at=datetime.utcnow())
+        )
+    return jsonify({"message": "Skill removed from your profile successfully"}), 200
+
+@app.route("/api/users/me/courses/<int:course_id>", methods=["DELETE"])
+@token_required
+def soft_delete_user_course(course_id):
+    with engine.begin() as conn:
+        conn.execute(
+            update(user_courses_table)
+            .where(
+                (user_courses_table.c.user_id == g.current_user["id"]) &
+                (user_courses_table.c.course_id == course_id)
+            )
+            .values(is_deleted=True, deleted_at=datetime.utcnow())
+        )
+    return jsonify({"message": "Course enrollment removed successfully"}), 200
 
 # =========================================================
-# مسار التسجيل في دورة تدريبية (Enroll in Course)
+# Course Enrollment Route (/api/courses/<id>/enroll)
 # =========================================================
 @app.route("/api/courses/<int:course_id>/enroll", methods=["POST"])
 @token_required
 def enroll_in_course(course_id):
     with engine.begin() as conn:
         course = conn.execute(
-            select(courses_table).where(courses_table.c.id == course_id)
+            select(courses_table).where(
+                (courses_table.c.id == course_id) &
+                ((courses_table.c.is_deleted == False) | (courses_table.c.is_deleted == None))
+            )
         ).first()
         if not course:
             return jsonify({"error": "Not Found", "message": "Course not found"}), 404
@@ -325,15 +492,27 @@ def enroll_in_course(course_id):
                 (user_courses_table.c.user_id == g.current_user["id"]) &
                 (user_courses_table.c.course_id == course_id)
             )
-        ).first()
+        ).mappings().first()
 
         if existing:
+            if existing["is_deleted"]:
+                conn.execute(
+                    update(user_courses_table)
+                    .where(
+                        (user_courses_table.c.user_id == g.current_user["id"]) &
+                        (user_courses_table.c.course_id == course_id)
+                    )
+                    .values(is_deleted=False, deleted_at=None, enrolled_at=datetime.utcnow())
+                )
+                return jsonify({"message": "Successfully re-enrolled in course!"}), 201
             return jsonify({"message": "You are already enrolled in this course!"}), 200
 
         conn.execute(
             insert(user_courses_table).values(
                 user_id=g.current_user["id"],
                 course_id=course_id,
+                is_deleted=False,
+                deleted_at=None,
                 enrolled_at=datetime.utcnow()
             )
         )
@@ -341,13 +520,17 @@ def enroll_in_course(course_id):
     return jsonify({"message": "Successfully enrolled in course!"}), 201
 
 # =========================================================
-# مسارات الدورات والتوصيات عبر SQLAlchemy Core (/api/courses)
+# Course Catalog & Recommendations (/api/courses)
 # =========================================================
 @app.route("/api/courses", methods=["GET"])
 def list_courses():
     search = request.args.get("search", "").lower()
     with engine.connect() as conn:
-        rows = conn.execute(select(courses_table)).mappings().all()
+        rows = conn.execute(
+            select(courses_table).where(
+                (courses_table.c.is_deleted == False) | (courses_table.c.is_deleted == None)
+            )
+        ).mappings().all()
         
     result = []
     for row in rows:
@@ -361,7 +544,10 @@ def list_courses():
 def get_course_details(course_id):
     with engine.connect() as conn:
         row = conn.execute(
-            select(courses_table).where(courses_table.c.id == course_id)
+            select(courses_table).where(
+                (courses_table.c.id == course_id) &
+                ((courses_table.c.is_deleted == False) | (courses_table.c.is_deleted == None))
+            )
         ).mappings().first()
         
     if not row:
@@ -376,12 +562,19 @@ def get_recommendations():
         stmt = (
             select(skills_table.c.name)
             .select_from(user_skills_table.join(skills_table, user_skills_table.c.skill_id == skills_table.c.id))
-            .where(user_skills_table.c.user_id == user["id"])
+            .where(
+                (user_skills_table.c.user_id == user["id"]) &
+                ((user_skills_table.c.is_deleted == False) | (user_skills_table.c.is_deleted == None))
+            )
         )
         user_skills_rows = conn.execute(stmt).all()
         user_skill_names = set(r[0].lower() for r in user_skills_rows if r[0])
 
-        courses_rows = conn.execute(select(courses_table)).mappings().all()
+        courses_rows = conn.execute(
+            select(courses_table).where(
+                (courses_table.c.is_deleted == False) | (courses_table.c.is_deleted == None)
+            )
+        ).mappings().all()
 
     recommendations = []
     for row in courses_rows:
@@ -406,12 +599,13 @@ def get_recommendations():
 @app.route("/api/skills", methods=["GET"])
 def get_all_skills():
     with engine.connect() as conn:
-        rows = conn.execute(select(skills_table)).mappings().all()
+        rows = conn.execute(
+            select(skills_table).where(
+                (skills_table.c.is_deleted == False) | (skills_table.c.is_deleted == None)
+            )
+        ).mappings().all()
     return jsonify({"skills": [skill_row_to_dict(r) for r in rows]}), 200
 
-# =========================================================
-# مسار تعبئة قاعدة بيانات بوستجرام التجريبية (/api/seed)
-# =========================================================
 @app.route("/api/seed", methods=["POST"])
 def seed_database():
     with engine.begin() as conn:
@@ -432,6 +626,8 @@ def seed_database():
                     insert(skills_table).values(
                         name=name,
                         description=desc,
+                        is_deleted=False,
+                        deleted_at=None,
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow(),
                     )
@@ -451,6 +647,8 @@ def seed_database():
                         description=desc,
                         instructor=inst,
                         skill_requirements=reqs,
+                        is_deleted=False,
+                        deleted_at=None,
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow(),
                     )
@@ -461,6 +659,8 @@ def seed_database():
                         insert(course_vectors_table).values(
                             course_id=c_id,
                             embedding_vector="[0.12, 0.45, 0.88, 0.33]",
+                            is_deleted=False,
+                            deleted_at=None,
                             created_at=datetime.utcnow(),
                             updated_at=datetime.utcnow(),
                         )
