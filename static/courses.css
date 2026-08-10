@@ -1,9 +1,6 @@
-/* =========================================================
-   COURSES.CSS - Course Catalog, Cards, Recommendations & Profile
-   Color Palette: Blue (الأزرق), Cyan (السماوي), Yellow (الأصفر), Red (الأحمر)
-========================================================= */
+/* Recommendations Profile pages */
 
-/* Top bar with Search and Filters */
+
 .toolbar-section {
   display: flex;
   justify-content: space-between;
@@ -36,7 +33,7 @@
   border-color: var(--color-cyan-primary);
 }
 
-/* Course Grid */
+
 .courses-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -134,7 +131,7 @@
   align-items: center;
 }
 
-/* Match Score Badge for Recommendations */
+
 .match-score-badge {
   display: inline-flex;
   align-items: center;
@@ -152,7 +149,7 @@
   color: #FFFFFF;
 }
 
-/* Course Details Page Layout */
+
 .course-details-card {
   background: #FFFFFF;
   border-radius: 16px;
@@ -161,7 +158,7 @@
   padding: 2.5rem;
 }
 
-/* Profile Page Layout */
+
 .profile-grid {
   display: grid;
   grid-template-columns: 1fr 2fr;

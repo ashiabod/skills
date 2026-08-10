@@ -26,9 +26,7 @@
   <main>
     <section class="auth-wrapper">
       <div class="auth-card register-card">
-        <h1 class="auth-title">Create Student Profile</h1>
-        <p class="auth-subtitle">Join today to get tailored AI recommendations based on your skills</p>
-        
+        <h1 class="auth-title">Create Student Profile</h1>        
         <div id="alert-container"></div>
 
         <form id="register-form" onsubmit="handleRegister(event)">
@@ -107,11 +105,10 @@
   </main>
 
   <footer>
-    <p>Skills Utilization Platform &copy; 2026 | Built with <span>Python</span>, <span>Flask</span>, and <span>PostgreSQL</span></p>
+    <p>Skills Utilization Platform &copy;</p>
   </footer>
 
   <script>
-    // Pure Vanilla JS - No Jinja
     async function loadAvailableSkills() {
       try {
         const res = await fetch('/api/skills');

@@ -1,7 +1,4 @@
-/* =========================================================
-   STYLE.CSS - Shared Shell (Nav, Header, Footer, Typography)
-   Color Palette: Blue (الأزرق), Cyan (السماوي), Yellow (الأصفر), Red (الأحمر)
-========================================================= */
+/* Nav, Header, Footer, Typography */
 
 :root {
   --color-blue-primary: #1E3A8A;

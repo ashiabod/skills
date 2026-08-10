@@ -7,10 +7,9 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# إضافة مسار المشروع الجذري ليتعرف على ملف النماذج والإعدادات
+# إضافة مسار المشروع
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# استيراد metadata من نماذج SQLAlchemy Core بدلاً من Base (ORM)
 from models import metadata
 from config import Config
 

@@ -1,7 +1,4 @@
-/* =========================================================
-   AUTH.CSS - Login & Register Pages
-   Centered Layouts, Form Focus States, Skill Selector
-========================================================= */
+/* Login & Register Pages */
 
 .auth-wrapper {
   display: flex;
@@ -68,14 +65,14 @@
   box-shadow: 0 0 0 4px var(--color-cyan-light);
 }
 
-/* Form row for two columns */
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
 
-/* Skill Selection Checkboxes inside register form */
+
 .skills-select-container {
   background-color: var(--color-cyan-light);
   border: 1px solid var(--color-cyan-border);
