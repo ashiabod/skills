@@ -3,7 +3,7 @@ from sqlalchemy import (
     MetaData, Table, Column, Integer, String, Text, ForeignKey, DateTime
 )
 
-# استخدام SQLAlchemy Core بدلاً من ORM
+
 metadata = MetaData()
 
 users_table = Table(
