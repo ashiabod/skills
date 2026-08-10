@@ -12,7 +12,6 @@
     <div class="nav-container">
       <a href="/courses" class="logo-area">
         <span>Skills Platform</span>
-        <span class="logo-badge">AI Match</span>
       </a>
       <nav>
         <ul>
@@ -178,7 +177,7 @@
 
             <form onsubmit="addNewSkill(event)" style="display:flex; gap:0.75rem;">
               <select id="new-skill-select" class="form-control" style="flex:2;" required ${isDropdownDisabled}>
-                <option value="" disabled selected>-- Select an existing platform skill --</option>
+                <option value="" disabled selected>Select a new skill</option>
                 ${dropdownOptions}
               </select>
               <select id="new-skill-prof" class="form-control" style="flex:1;" ${isDropdownDisabled}>
