@@ -140,7 +140,7 @@ def token_required(f):
     return decorated
 
 # =========================================================
-# Static HTML5 Frontend Routes (100% Static - No Jinja)
+# Static HTML5 Frontend Routes (100% Static)
 # =========================================================
 @app.route("/")
 def index():
